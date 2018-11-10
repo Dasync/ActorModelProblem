@@ -6,6 +6,12 @@ public class PurchaseItemCommand : Message
     public int Quantity { get; set; }
 }
 
+public class PurchaseItemResponse : Message
+{
+    public bool Succeeded { get; set; }
+    public string ErrorCode { get; set; }
+}
+
 public class CreditCommand : Message
 {
     public string ExternalTransationId { get; set; }
@@ -26,10 +32,12 @@ public class OrderPlacementCoordinator : Actor,
     IReceive<CreditResponse>
 {
     private PersistedValue<Guid> transactionId;
+    private PersistedValue<ActorRef> requestor;
 
     public void Receive(PurchaseItemCommand command)
     {
         this.transactionId = PersistedValue.Create(Guid.NewGuid());
+        this.requestor = PersistedValue.Create(command.Sender);
 
         var paymentActor = this.System.GetActorRef(
             type: "Payment",
@@ -54,7 +62,14 @@ public class OrderPlacementCoordinator : Actor,
         }
         else
         {
-            // TODO: fail order
+            this.requestor.Value.Send(
+                new PurchaseItemResponse
+                {
+                    Succeeded = false,
+                    ErrorCode = response.ErrorCode
+                });
+
+            this.Terminate();
         }
     }
 }
