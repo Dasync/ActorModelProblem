@@ -32,6 +32,12 @@ public class VoidTransactionCommand : Message
     public string ExternalTransationId { get; set; }
 }
 
+public class VoidTransactionResponse : Message
+{
+    public bool Succeeded { get; set; }
+    public string ErrorCode { get; set; }
+}
+
 public class ReserveItemCommand : Message
 {
     public string ItemId { get; set; }
@@ -50,12 +56,14 @@ public class ReserveItemResponse : Message
 public class OrderPlacementCoordinator : Actor,
     IReceive<PurchaseItemCommand>,
     IReceive<CreditResponse>,
-    IReceive<ReserveItemResponse>
+    IReceive<ReserveItemResponse>,
+    IReceive<VoidTransactionResponse>
 {
     private PersistedValue<Guid> transactionId;
     private PersistedValue<ActorRef> requestor;
     private PersistedValue<string> itemId;
     private PersistedValue<int> quantity;
+    private PersistedValue<string> reservationError;
 
     public void Receive(PurchaseItemCommand command)
     {
@@ -121,6 +129,9 @@ public class OrderPlacementCoordinator : Actor,
         }
         else
         {
+            this.reservationError =
+                PersistedValue.Create(response.ErrorCode);
+
             var paymentActor = this.System.GetActorRef(
                 type: "Payment",
                 id: transactionId.Value);
@@ -131,5 +142,17 @@ public class OrderPlacementCoordinator : Actor,
                     transactionId.Value.ToString(),
             });
         }
+    }
+
+    public void Receive(VoidTransactionResponse response)
+    {
+        this.requestor.Value.Send(
+            new PurchaseItemResponse
+            {
+                Succeeded = false,
+                ErrorCode = this.reservationError.Value
+            });
+
+        this.Terminate();
     }
 }
