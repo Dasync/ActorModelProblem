@@ -13,8 +13,17 @@ public class CreditCommand : Message
     public string Description { get; set; }
 }
 
+public class CreditResponse : Message
+{
+    public string ExternalTransationId { get; set; }
+    public string InternalTransationId { get; set; }
+    public bool Succeeded { get; set; }
+    public string ErrorCode { get; set; }
+}
+
 public class OrderPlacementCoordinator : Actor,
-    IReceive<PurchaseItemCommand>
+    IReceive<PurchaseItemCommand>,
+    IReceive<CreditResponse>
 {
     private PersistedValue<Guid> transactionId;
 
@@ -35,5 +44,17 @@ public class OrderPlacementCoordinator : Actor,
             Amount = 99.95,
             Description = "Coffee Beans 1lb"
         });
+    }
+
+    public void Receive(CreditResponse response)
+    {
+        if (response.Succeeded)
+        {
+            // TODO: reserve item
+        }
+        else
+        {
+            // TODO: fail order
+        }
     }
 }
