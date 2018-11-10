@@ -27,17 +27,28 @@ public class CreditResponse : Message
     public string ErrorCode { get; set; }
 }
 
+public class ReserveItemCommand : Message
+{
+    public string ItemId { get; set; }
+    public int Quantity { get; set; }
+    public bool AllOrNothing { get; set; }
+}
+
 public class OrderPlacementCoordinator : Actor,
     IReceive<PurchaseItemCommand>,
     IReceive<CreditResponse>
 {
     private PersistedValue<Guid> transactionId;
     private PersistedValue<ActorRef> requestor;
+    private PersistedValue<string> itemId;
+    private PersistedValue<int> quantity;
 
     public void Receive(PurchaseItemCommand command)
     {
         this.transactionId = PersistedValue.Create(Guid.NewGuid());
         this.requestor = PersistedValue.Create(command.Sender);
+        this.itemId = PersistedValue.Create(command.ItemId);
+        this.quantity = PersistedValue.Create(command.Quantity);
 
         var paymentActor = this.System.GetActorRef(
             type: "Payment",
@@ -58,7 +69,16 @@ public class OrderPlacementCoordinator : Actor,
     {
         if (response.Succeeded)
         {
-            // TODO: reserve item
+            var warehouseActor = this.System.GetActorRef(
+                type: "Warehouse",
+                id: transactionId.Value);
+
+            warehouseActor.Send(new ReserveItemCommand
+            {
+                ItemId = this.itemId.Value,
+                Quantity = this.quantity.Value,
+                AllOrNothing = true
+            });
         }
         else
         {
