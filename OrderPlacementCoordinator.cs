@@ -27,6 +27,11 @@ public class CreditResponse : Message
     public string ErrorCode { get; set; }
 }
 
+public class VoidTransactionCommand : Message
+{
+    public string ExternalTransationId { get; set; }
+}
+
 public class ReserveItemCommand : Message
 {
     public string ItemId { get; set; }
@@ -116,7 +121,15 @@ public class OrderPlacementCoordinator : Actor,
         }
         else
         {
-            // TODO: void payment
+            var paymentActor = this.System.GetActorRef(
+                type: "Payment",
+                id: transactionId.Value);
+
+            paymentActor.Send(new VoidTransactionCommand
+            {
+                ExternalTransationId =
+                    transactionId.Value.ToString(),
+            });
         }
     }
 }
