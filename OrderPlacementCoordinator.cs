@@ -34,9 +34,18 @@ public class ReserveItemCommand : Message
     public bool AllOrNothing { get; set; }
 }
 
+public class ReserveItemResponse : Message
+{
+    public string ItemId { get; set; }
+    public int Quantity { get; set; }
+    public bool Succeeded { get; set; }
+    public string ErrorCode { get; set; }
+}
+
 public class OrderPlacementCoordinator : Actor,
     IReceive<PurchaseItemCommand>,
-    IReceive<CreditResponse>
+    IReceive<CreditResponse>,
+    IReceive<ReserveItemResponse>
 {
     private PersistedValue<Guid> transactionId;
     private PersistedValue<ActorRef> requestor;
@@ -90,6 +99,24 @@ public class OrderPlacementCoordinator : Actor,
                 });
 
             this.Terminate();
+        }
+    }
+
+    public void Receive(ReserveItemResponse response)
+    {
+        if (response.Succeeded)
+        {
+            this.requestor.Value.Send(
+                new PurchaseItemResponse
+                {
+                    Succeeded = true
+                });
+
+            this.Terminate();
+        }
+        else
+        {
+            // TODO: void payment
         }
     }
 }
